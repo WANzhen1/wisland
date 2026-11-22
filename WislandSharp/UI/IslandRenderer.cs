@@ -832,7 +832,9 @@ public sealed partial class IslandRenderer
             w = Math.Max(140f, w);
             h = Math.Max(30f, h);
             _body = new SKRect((WinW - w) / 2f, 2f, (WinW + w) / 2f, 2f + h);
-            Shapes.TopAttachedInto(_path, _body, Fillet, Math.Min(30f, _body.Height / 2f));
+            var shape = new SKRect(_body.Left, 0f, _body.Right, _body.Bottom);
+            Shapes.TopAttachedInto(_path, shape, Fillet,
+                Math.Min(30f, _body.Height / 2f), 2f);
 
             float mx = (_mouseX - _body.MidX) / Math.Max(1f, _body.Width / 2f);
             float my = (_mouseY - _body.MidY) / Math.Max(1f, _body.Height / 2f);
