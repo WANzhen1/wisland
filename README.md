@@ -2,6 +2,8 @@
 
 贴在屏幕边缘的液态毛玻璃胶囊，悬停弹性展开。Windows 10 / 11，Python + PySide6。
 
+> 另有原生 C# / .NET 移植版本：[WislandSharp](WislandSharp/README.md)。
+
 <p align="center"><img src="docs/home.png" width="720"></p>
 
 ## 安装

@@ -1,0 +1,65 @@
+{
+  "island": {
+    "edge": "top",
+    "pos": 0.5,
+    "screen": 0,
+    "theme": "auto",
+    "hover_expand_ms": 120,
+    "collapse_delay_ms": 320,
+    "exclude_from_capture": false,
+    "live_backdrop": false,
+    "scale": 1.0,
+    "expand_mode": "hover",
+    "compact_view": "clock",
+    "auto_cycle_s": 30,
+    "passthrough": false
+  },
+  "media": {
+    "auto_show": true,
+    "lyrics": true,
+    "priority": ["cloudmusic", "bilibili", "chrome", "zen", "msedge", "firefox"]
+  },
+  "weather": {
+    "city": "上海",
+    "lat": null,
+    "lon": null,
+    "interval_min": 15
+  },
+  "stocks": {
+    "watchlist": ["sh000001", "sz399001", "sz399006", "hk00700", "usAAPL", "usNVDA", "usQQQ"],
+    "interval": 5
+  },
+  "clipboard": {
+    "max": 10
+  },
+  "notify": {
+    "enabled": true,
+    "show_preview": true,
+    "toast_apps": {
+      "QQ": { "name": "QQ", "kind": "qq" },
+      "QQNT": { "name": "QQ", "kind": "qq" },
+      "Weixin": { "name": "微信", "kind": "wechat" },
+      "WeChat": { "name": "微信", "kind": "wechat" },
+      "ThunderbirdToast": { "name": "邮件", "kind": "mail" },
+      "Thunderbird": { "name": "邮件", "kind": "mail" }
+    },
+    "open": {
+      "qq": "",
+      "wechat": "",
+      "mail": ""
+    },
+    "flash_processes": {
+      "qq.exe": { "name": "QQ", "kind": "qq" },
+      "weixin.exe": { "name": "微信", "kind": "wechat" },
+      "wechat.exe": { "name": "微信", "kind": "wechat" },
+      "thunderbird.exe": { "name": "邮件", "kind": "mail" }
+    }
+  },
+  "launcher": [
+    {
+      "name": "文件资源管理器",
+      "path": "C:/Windows/explorer.exe",
+      "args": ""
+    }
+  ]
+}
