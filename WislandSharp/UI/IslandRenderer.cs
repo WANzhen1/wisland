@@ -14,6 +14,7 @@ public sealed partial class IslandRenderer
     private const float NavH = 36f;
     private const float PageGap = 8f;
     private const float Fillet = 13f;
+    private const float TopShoulder = 12f;
 
     private readonly object _lock = new();
     private readonly WislandConfig _config;
@@ -376,7 +377,7 @@ public sealed partial class IslandRenderer
         {
             if (_body.Width < 1f || _body.Height < 1f) return false;
             if (_body.Contains(x, y)) return true;
-            if (x >= _body.Left - Fillet && x <= _body.Right + Fillet && y >= 0 && y <= _body.Top + 2f)
+            if (x >= _body.Left - Fillet && x <= _body.Right + Fillet && y >= 0 && y <= TopShoulder)
                 return true;
             return false;
         }
@@ -908,7 +909,7 @@ public sealed partial class IslandRenderer
             _body = new SKRect((WinW - w) / 2f, 2f, (WinW + w) / 2f, 2f + h);
             var shape = new SKRect(_body.Left, 0f, _body.Right, _body.Bottom);
             Shapes.TopAttachedInto(_path, shape, Fillet,
-                Math.Min(30f, _body.Height / 2f), 2f);
+                Math.Min(30f, _body.Height / 2f), topOverscan: 1f, shoulderHeight: TopShoulder);
 
             float mx = (_mouseX - _body.MidX) / Math.Max(1f, _body.Width / 2f);
             float my = (_mouseY - _body.MidY) / Math.Max(1f, _body.Height / 2f);

@@ -7,29 +7,31 @@ public static class Shapes
     private const float K = 0.5522847f;
 
     /// <summary>
-    /// 贴顶边的液态胶囊：顶部与屏幕边缘通过两侧内凹"表面张力"肩线相连，
-    /// 底部保持大圆角。body.Top 是胶囊本体的顶面，通常留 2~4px 给肩线。
+    /// 贴顶边的液态胶囊：顶部通过两侧内凹肩线连接屏幕边缘，底部保持大圆角。
+    /// shoulderHeight 控制肩线高度，fillet 控制顶部外扩宽度。
     /// </summary>
     public static SKPath TopAttached(SKRect body, float fillet = 13f, float bottomRadius = 18f,
-        float topOverscan = 0f)
+        float topOverscan = 0f, float shoulderHeight = 12f)
     {
         var path = new SKPath();
-        TopAttachedInto(path, body, fillet, bottomRadius, topOverscan);
+        TopAttachedInto(path, body, fillet, bottomRadius, topOverscan, shoulderHeight);
         return path;
     }
 
     public static void TopAttachedInto(SKPath path, SKRect body, float fillet = 13f,
-        float bottomRadius = 18f, float topOverscan = 0f)
+        float bottomRadius = 18f, float topOverscan = 0f, float shoulderHeight = 12f)
     {
         float l = body.Left, r = body.Right, t = body.Top, b = body.Bottom;
         float rb = Math.Clamp(bottomRadius, 0f, Math.Min(body.Width, body.Height) / 2f);
         float f = Math.Max(0f, Math.Min(fillet, body.Width / 2f));
         float top = t - Math.Max(0f, topOverscan);
+        float shoulder = t + Math.Max(0f, shoulderHeight);
+        float shoulderH = Math.Max(1f, shoulder - top);
 
         path.Rewind();
         path.MoveTo(l - f, top);
         path.LineTo(r + f, top);
-        path.CubicTo(r + f - f * K, top, r, t - f * K, r, t);
+        path.CubicTo(r + f - f * K, top, r, shoulder - shoulderH * K, r, shoulder);
         path.LineTo(r, b - rb);
         if (rb > 0.01f)
         {
@@ -40,8 +42,8 @@ public static class Shapes
         {
             path.CubicTo(l + rb - rb * K, b, l, b - rb + rb * K, l, b - rb);
         }
-        path.LineTo(l, t);
-        path.CubicTo(l, t - f * K, l - f + f * K, top, l - f, top);
+        path.LineTo(l, shoulder);
+        path.CubicTo(l, shoulder - shoulderH * K, l - f + f * K, top, l - f, top);
         path.Close();
     }
 
