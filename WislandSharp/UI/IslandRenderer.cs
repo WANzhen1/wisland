@@ -656,6 +656,7 @@ public sealed partial class IslandRenderer
     {
         lock (_lock)
         {
+            if (!_config.Island.WheelSwitch) return;
             if (_expanded)
             {
                 _navIndex = (_navIndex + (delta < 0 ? 1 : _navIcons.Length - 1)) % _navIcons.Length;

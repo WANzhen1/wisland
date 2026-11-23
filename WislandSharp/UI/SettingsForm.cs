@@ -30,6 +30,7 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _collapseMs = new();
     private readonly NumericUpDown _autoCycle = new();
     private readonly CheckBox _idlePet = new();
+    private readonly CheckBox _wheelSwitch = new();
     private readonly CheckBox _liveBackdrop = new();
     private readonly CheckBox _excludeCapture = new();
     private readonly CheckBox _mediaAutoShow = new();
@@ -187,6 +188,8 @@ public sealed class SettingsForm : Form
 
         _idlePet.Text = "自动轮换时展示小形象表情（需轮换秒数 > 0）";
         _idlePet.ForeColor = Fg;
+        _wheelSwitch.Text = "鼠标悬停时滚动滚轮切换视图 / 页签";
+        _wheelSwitch.ForeColor = Fg;
         _liveBackdrop.Text = "实时桌面毛玻璃（更耗性能）";
         _liveBackdrop.ForeColor = Fg;
         _excludeCapture.Text = "截图 / 录屏时隐藏灵动岛";
@@ -204,16 +207,17 @@ public sealed class SettingsForm : Form
         StyleInput(_lon);
 
         var appearance = Group("外观与行为");
-        var a = Grid(10);
+        var a = Grid(11);
         AddRow(a, 0, "主题", _theme);
         AddRow(a, 1, "显示模式", _expandMode);
         AddRow(a, 2, "收起态视图", _compactView);
         AddRow(a, 3, "自动轮换（秒，0 = 不轮换）", _autoCycle);
         AddRow(a, 4, "闲时展示表情", _idlePet);
-        AddRow(a, 5, "悬停展开延迟（毫秒）", _hoverMs);
-        AddRow(a, 6, "离开收起延迟（毫秒）", _collapseMs);
-        AddRow(a, 7, "", _liveBackdrop);
-        AddRow(a, 8, "", _excludeCapture);
+        AddRow(a, 5, "滚轮切换栏目", _wheelSwitch);
+        AddRow(a, 6, "悬停展开延迟（毫秒）", _hoverMs);
+        AddRow(a, 7, "离开收起延迟（毫秒）", _collapseMs);
+        AddRow(a, 8, "", _liveBackdrop);
+        AddRow(a, 9, "", _excludeCapture);
         var perfHint = new Label
         {
             Text = "关闭实时毛玻璃会使用静态渐变，优先保证流畅；开启后会低频抓取桌面。",
@@ -221,7 +225,7 @@ public sealed class SettingsForm : Form
             ForeColor = Muted,
             Padding = new Padding(0, 2, 0, 6)
         };
-        a.Controls.Add(perfHint, 1, 9);
+        a.Controls.Add(perfHint, 1, 10);
         appearance.Controls.Add(a);
         AddGroup(_commonFlow, appearance);
 
@@ -399,6 +403,7 @@ public sealed class SettingsForm : Form
         _collapseMs.Value = Clamp(source.Island.CollapseDelayMs, _collapseMs.Minimum, _collapseMs.Maximum);
         _autoCycle.Value = Clamp(source.Island.AutoCycleSeconds, _autoCycle.Minimum, _autoCycle.Maximum);
         _idlePet.Checked = source.Island.ShowIdlePet;
+        _wheelSwitch.Checked = source.Island.WheelSwitch;
         _liveBackdrop.Checked = source.Island.LiveBackdrop;
         _excludeCapture.Checked = source.Island.ExcludeFromCapture;
         _mediaAutoShow.Checked = source.Media.AutoShow;
@@ -443,6 +448,7 @@ public sealed class SettingsForm : Form
         _config.Island.CollapseDelayMs = (int)_collapseMs.Value;
         _config.Island.AutoCycleSeconds = (int)_autoCycle.Value;
         _config.Island.ShowIdlePet = _idlePet.Checked;
+        _config.Island.WheelSwitch = _wheelSwitch.Checked;
         _config.Island.LiveBackdrop = _liveBackdrop.Checked;
         _config.Island.ExcludeFromCapture = _excludeCapture.Checked;
         _config.Media.AutoShow = _mediaAutoShow.Checked;
