@@ -97,6 +97,7 @@ bin\Release\net10.0-windows10.0.19041.0\Wisland.exe
     "expand_mode": "hover",
     "compact_view": "clock",
     "auto_cycle_s": 30,
+    "show_idle_pet": true,
     "exclude_from_capture": false,
     "live_backdrop": false
   },
@@ -117,6 +118,7 @@ bin\Release\net10.0-windows10.0.19041.0\Wisland.exe
 
 - `expand_mode`: `hover` 悬停展开 / `always` 常驻展开 / `never` 保持收起。
 - `compact_view`: `clock` / `pet` / `music`。
+- `show_idle_pet`: 是否让“小形象表情”参与闲时自动轮换；关闭后闲时只保留时间天气，手动滚轮仍可切换。
 - `exclude_from_capture`: `true` 时灵动岛不会出现在截图/录屏里；`false` 时抓背景会短暂排除自身。
 - `live_backdrop`: 默认 `false`，使用轻量静态渐变玻璃，优先流畅；改成 `true` 才实时抓取桌面做真实毛玻璃。
 - `notify.toast_apps`: 通知 Handler 的 PrimaryId 前缀到 QQ/微信/邮件的映射，默认已覆盖常见前缀。

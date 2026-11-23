@@ -18,6 +18,7 @@ public sealed class IslandOptions
     [JsonPropertyName("expand_mode")] public string ExpandMode { get; set; } = "hover";
     [JsonPropertyName("compact_view")] public string CompactView { get; set; } = "clock";
     [JsonPropertyName("auto_cycle_s")] public int AutoCycleSeconds { get; set; } = 30;
+    [JsonPropertyName("show_idle_pet")] public bool ShowIdlePet { get; set; } = true;
     [JsonPropertyName("passthrough")] public bool Passthrough { get; set; }
 }
 

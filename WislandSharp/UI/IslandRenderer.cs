@@ -123,6 +123,7 @@ public sealed partial class IslandRenderer
         _notifications = notifications;
         _theme = new ThemeEngine(config.Island.Theme);
         _view = string.IsNullOrWhiteSpace(config.Island.CompactView) ? "clock" : config.Island.CompactView;
+        if (!config.Island.ShowIdlePet && _view == "pet") _view = "clock";
         _pinned = string.Equals(config.Island.ExpandMode, "always", StringComparison.OrdinalIgnoreCase);
         _passthrough = config.Island.Passthrough;
         _viewChangedAt = Environment.TickCount64;
@@ -362,6 +363,7 @@ public sealed partial class IslandRenderer
             _theme.SetMode(config.Island.Theme);
             _theme.FallbackToSystemTheme();
             _view = string.IsNullOrWhiteSpace(config.Island.CompactView) ? "clock" : config.Island.CompactView;
+            if (!config.Island.ShowIdlePet && _view == "pet") _view = "clock";
             _pinned = string.Equals(config.Island.ExpandMode, "always", StringComparison.OrdinalIgnoreCase);
             _passthrough = config.Island.Passthrough;
             _actions.SetPassthrough?.Invoke(_passthrough);
@@ -848,7 +850,7 @@ public sealed partial class IslandRenderer
             if (_mediaStoppedAt > 0 && now - _mediaStoppedAt > 8000 && _view == "music" &&
                 _previousView is "clock" or "pet")
             {
-                _view = _previousView;
+                _view = !_config.Island.ShowIdlePet && _previousView == "pet" ? "clock" : _previousView;
                 _viewChangedAt = now;
                 _mediaStoppedAt = 0;
             }
@@ -858,7 +860,7 @@ public sealed partial class IslandRenderer
                 (_view is "clock" or "pet") &&
                 now - _viewChangedAt > _config.Island.AutoCycleSeconds * 1000L)
             {
-                _view = _view == "clock" ? "pet" : "clock";
+                _view = _view == "clock" && _config.Island.ShowIdlePet ? "pet" : "clock";
                 _viewChangedAt = now;
             }
 

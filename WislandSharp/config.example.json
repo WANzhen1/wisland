@@ -12,6 +12,7 @@
     "expand_mode": "hover",
     "compact_view": "clock",
     "auto_cycle_s": 30,
+    "show_idle_pet": true,
     "passthrough": false
   },
   "media": {
