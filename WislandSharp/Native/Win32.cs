@@ -11,6 +11,7 @@ internal static class Win32
     public const int WM_LBUTTONUP = 0x0202;
     public const int WM_RBUTTONUP = 0x0205;
     public const int WM_MOUSEWHEEL = 0x020A;
+    public const int WM_CAPTURECHANGED = 0x0215;
     public const int WM_MOUSELEAVE = 0x02A3;
     public const int WM_HOTKEY = 0x0312;
     public const int WM_DPICHANGED = 0x02E0;
@@ -178,6 +179,12 @@ internal static class Win32
 
     [DllImport("user32.dll")]
     public static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetCapture(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    public static extern bool ReleaseCapture();
 
     [DllImport("user32.dll")]
     public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);

@@ -71,6 +71,12 @@ public sealed partial class IslandRenderer
     private int _hoverNav = -1;
     private int _hoverClipboardRow = -1;
     private bool _draggingVolume;
+    private bool _draggingBrightness;
+    private float _volumeUi;
+    private float _brightnessUi = -1f;
+    private long _volumeUiAt;
+    private long _brightnessUiAt;
+    private long _lastVolumeApplyAt;
 
     private SKPath _path = new();
     private SKRect _body;
@@ -132,6 +138,11 @@ public sealed partial class IslandRenderer
         _weatherState = _weather.Snapshot;
         _stockState = _stocks.Snapshot;
         _systemState = _system.Snapshot;
+        _volumeUi = _systemState.Volume;
+        _brightnessUi = _systemState.Brightness >= 0 ? _systemState.Brightness / 100f : -1f;
+        long now = Environment.TickCount64;
+        _volumeUiAt = now - 1000;
+        _brightnessUiAt = now - 1000;
         _clipState = _clipboard.Items;
         _notificationState = _notifications.Snapshot;
     }
@@ -150,7 +161,8 @@ public sealed partial class IslandRenderer
             lock (_lock)
             {
                 return !_expand.Rest || !_compactW.Rest || !_compactH.Rest || !_pageHeight.Rest ||
-                       _activityUntil > Environment.TickCount64;
+                       _activityUntil > Environment.TickCount64 ||
+                       _draggingVolume || _draggingBrightness;
             }
         }
     }
@@ -219,7 +231,18 @@ public sealed partial class IslandRenderer
 
     public void SetWeather(WeatherSnapshot state) { lock (_lock) _weatherState = state; }
     public void SetStocks(IReadOnlyList<StockQuote> state) { lock (_lock) _stockState = state; }
-    public void SetSystem(SystemSnapshot state) { lock (_lock) _systemState = state; }
+    public void SetSystem(SystemSnapshot state)
+    {
+        lock (_lock)
+        {
+            _systemState = state;
+            long now = Environment.TickCount64;
+            if (!_draggingVolume && now - _volumeUiAt > 250)
+                _volumeUi = state.Volume;
+            if (!_draggingBrightness && now - _brightnessUiAt > 250)
+                _brightnessUi = state.Brightness >= 0 ? state.Brightness / 100f : -1f;
+        }
+    }
     public void SetClipboard(IReadOnlyList<ClipboardEntry> state) { lock (_lock) _clipState = state; }
     public void SetNotifications(NotificationSnapshot state)
     {
@@ -381,11 +404,8 @@ public sealed partial class IslandRenderer
                 }
             }
 
-            if (_draggingVolume)
-            {
-                if (_volumeRect.Contains(x, y))
-                    _system.SetVolume((x - _volumeRect.Left) / _volumeRect.Width);
-            }
+            if (_draggingVolume) SetVolumeLocked(x);
+            else if (_draggingBrightness) SetBrightnessLocked(x);
         }
     }
 
@@ -398,7 +418,6 @@ public sealed partial class IslandRenderer
             _leaveSince = Environment.TickCount64;
             _hoverNav = -1;
             _hoverClipboardRow = -1;
-            _draggingVolume = false;
         }
     }
 
@@ -414,10 +433,18 @@ public sealed partial class IslandRenderer
             _downX = x;
             _downY = y;
             _downLeft = left;
-            if (left && _expanded && _navIndex == 4 && _volumeRect.Contains(x, y))
+            if (left && _expanded && _navIndex == 4)
             {
-                _draggingVolume = true;
-                _system.SetVolume((x - _volumeRect.Left) / _volumeRect.Width);
+                if (TrackContains(_volumeRect, x, y))
+                {
+                    _draggingVolume = true;
+                    SetVolumeLocked(x, true);
+                }
+                else if (_brightnessUi >= 0f && TrackContains(_brightnessRect, x, y))
+                {
+                    _draggingBrightness = true;
+                    SetBrightnessLocked(x);
+                }
             }
         }
     }
@@ -426,11 +453,53 @@ public sealed partial class IslandRenderer
     {
         lock (_lock)
         {
+            bool wasDragging = _draggingVolume || _draggingBrightness;
+            if (_draggingVolume) SetVolumeLocked(x, true);
+            else if (_draggingBrightness) SetBrightnessLocked(x);
             _draggingVolume = false;
+            _draggingBrightness = false;
             if (!left) return;
+            if (wasDragging) return;
             if (Math.Abs(x - _downX) > 6 || Math.Abs(y - _downY) > 6) return;
             ClickLocked(x, y);
         }
+    }
+
+    public void MouseCaptureLost()
+    {
+        lock (_lock)
+        {
+            _draggingVolume = false;
+            _draggingBrightness = false;
+        }
+    }
+
+    private static bool TrackContains(SKRect track, float x, float y)
+        => track.Width > 0f &&
+           x >= track.Left - 8f && x <= track.Right + 8f &&
+           y >= track.Top - 10f && y <= track.Bottom + 10f;
+
+    private void SetVolumeLocked(float x, bool force = false)
+    {
+        if (_volumeRect.Width <= 0f) return;
+        float value = Math.Clamp((x - _volumeRect.Left) / _volumeRect.Width, 0f, 1f);
+        _volumeUi = value;
+        long now = Environment.TickCount64;
+        _volumeUiAt = now;
+        if (force || now - _lastVolumeApplyAt >= 16)
+        {
+            _lastVolumeApplyAt = now;
+            _system.SetVolume(value);
+        }
+    }
+
+    private void SetBrightnessLocked(float x)
+    {
+        if (_brightnessRect.Width <= 0f) return;
+        float value = Math.Clamp((x - _brightnessRect.Left) / _brightnessRect.Width, 0f, 1f);
+        _brightnessUi = value;
+        _brightnessUiAt = Environment.TickCount64;
+        _system.SetBrightness((int)Math.Round(value * 100f));
     }
 
     public void RightClick()
@@ -550,6 +619,8 @@ public sealed partial class IslandRenderer
             };
 
             _systemState = new SystemSnapshot { Volume = 0.62f, Muted = false, Peak = 0.5f, Brightness = 72 };
+            _volumeUi = 0.62f;
+            _brightnessUi = 0.72f;
             _clipState = new[]
             {
                 new ClipboardEntry { Id = 1, Text = "把 Wisland 的视觉外壳移植到 C# + SkiaSharp，去掉 PySide6 常驻开销。", Time = now.AddMinutes(-2) },
@@ -693,10 +764,10 @@ public sealed partial class IslandRenderer
                     OpenSettings("ms-settings:bluetooth");
                     return;
                 case IslandHit.VolumeTrack:
-                    _system.SetVolume((x - hit.Rect.Left) / hit.Rect.Width);
+                    SetVolumeLocked(x, true);
                     return;
                 case IslandHit.BrightnessTrack:
-                    _system.SetBrightness((int)Math.Round(Math.Clamp((x - hit.Rect.Left) / hit.Rect.Width, 0, 1) * 100));
+                    SetBrightnessLocked(x);
                     return;
                 case IslandHit.WeatherAdd:
                     ShowActivity("城市管理请编辑 config.json", "weather.city / weather.lat / weather.lon", "\uE710");

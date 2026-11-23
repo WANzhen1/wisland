@@ -10,12 +10,15 @@ public sealed class SystemService : IDisposable
     private readonly object _lock = new();
     private readonly CancellationTokenSource _cts = new();
     private readonly Thread _thread;
+    private readonly Thread _brightnessThread;
+    private readonly AutoResetEvent _brightnessWake = new(false);
     private MMDeviceEnumerator? _enumerator;
     private MMDevice? _device;
     private AudioEndpointVolume? _volume;
     private AudioMeterInformation? _meter;
     private float _peak;
     private int _brightness = -1;
+    private int _brightnessRequest = -1;
 
     public event Action<SystemSnapshot>? Changed;
 
@@ -50,26 +53,42 @@ public sealed class SystemService : IDisposable
     public SystemService()
     {
         _thread = new Thread(Run) { IsBackground = true, Name = "Wisland system" };
+        _brightnessThread = new Thread(BrightnessLoop)
+        {
+            IsBackground = true,
+            Name = "Wisland brightness"
+        };
     }
 
-    public void Start() => _thread.Start();
+    public void Start()
+    {
+        _thread.Start();
+        _brightnessThread.Start();
+    }
 
     public void Dispose()
     {
         _cts.Cancel();
-        try { _thread.Join(500); } catch { }
+        _brightnessWake.Set();
+        bool systemStopped = false;
+        bool brightnessStopped = false;
+        try { systemStopped = _thread.Join(500); } catch { }
+        try { brightnessStopped = _brightnessThread.Join(1000); } catch { }
         lock (_lock)
         {
             _meter = null;
             try { _device?.Dispose(); } catch { }
             try { _enumerator?.Dispose(); } catch { }
         }
-        _cts.Dispose();
+        if (systemStopped && brightnessStopped)
+        {
+            _brightnessWake.Dispose();
+            _cts.Dispose();
+        }
     }
 
     private void Run()
     {
-        int tick = 0;
         while (!_cts.IsCancellationRequested)
         {
             try
@@ -80,7 +99,6 @@ public sealed class SystemService : IDisposable
                     peak = Math.Clamp(_meter.MasterPeakValue, 0f, 1f);
                 lock (_lock) _peak = _peak * 0.55f + peak * 0.45f;
 
-                if (tick++ % 600 == 0) RefreshBrightness();
                 Changed?.Invoke(Snapshot);
             }
             catch
@@ -88,6 +106,36 @@ public sealed class SystemService : IDisposable
                 CloseDevice();
             }
             Thread.Sleep(50);
+        }
+    }
+
+    private void BrightnessLoop()
+    {
+        long nextRefresh = 0;
+        while (!_cts.IsCancellationRequested)
+        {
+            int requested;
+            lock (_lock)
+            {
+                requested = _brightnessRequest;
+                _brightnessRequest = -1;
+            }
+
+            long now = Environment.TickCount64;
+            if (requested >= 0)
+            {
+                ApplyBrightness(requested);
+                nextRefresh = now + 30_000;
+            }
+            else if (now >= nextRefresh)
+            {
+                RefreshBrightness();
+                nextRefresh = now + 30_000;
+            }
+            else
+            {
+                _brightnessWake.WaitOne(250);
+            }
         }
     }
 
@@ -134,31 +182,44 @@ public sealed class SystemService : IDisposable
 
     private void RefreshBrightness()
     {
+        int value = -1;
         try
         {
             using var searcher = new ManagementObjectSearcher("root\\WMI", "SELECT CurrentBrightness FROM WmiMonitorBrightness");
             foreach (ManagementObject obj in searcher.Get())
             {
-                _brightness = Convert.ToInt32(obj["CurrentBrightness"]);
+                value = Convert.ToInt32(obj["CurrentBrightness"]);
                 break;
             }
         }
-        catch { _brightness = -1; }
+        catch { value = -1; }
+        lock (_lock) _brightness = value;
     }
 
-    public bool SetBrightness(int percent)
+    public void SetBrightness(int percent)
+    {
+        percent = Math.Clamp(percent, 0, 100);
+        lock (_lock)
+        {
+            _brightness = percent;
+            _brightnessRequest = percent;
+        }
+        _brightnessWake.Set();
+    }
+
+    private void ApplyBrightness(int percent)
     {
         try
         {
-            using var searcher = new ManagementObjectSearcher("root\\WMI", "SELECT * FROM WmiMonitorBrightnessMethods");
+            using var searcher = new ManagementObjectSearcher(
+                "root\\WMI", "SELECT * FROM WmiMonitorBrightnessMethods");
             foreach (ManagementObject obj in searcher.Get())
             {
-                obj.InvokeMethod("WmiSetBrightness", new object[] { 1, Math.Clamp(percent, 0, 100) });
-                _brightness = Math.Clamp(percent, 0, 100);
-                return true;
+                obj.InvokeMethod("WmiSetBrightness", new object[] { 1, percent });
+                lock (_lock) _brightness = percent;
+                return;
             }
         }
         catch { }
-        return false;
     }
 }

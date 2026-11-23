@@ -353,6 +353,7 @@ public sealed class IslandWindow : NativeWindow, IDisposable
                 {
                     var (x, y) = ClientPoint(m.LParam);
                     _renderer.MouseDown(x, y, true);
+                    Win32.SetCapture(Handle);
                     _wake.Set();
                     return;
                 }
@@ -360,9 +361,14 @@ public sealed class IslandWindow : NativeWindow, IDisposable
                 {
                     var (x, y) = ClientPoint(m.LParam);
                     _renderer.MouseUp(x, y, true);
+                    Win32.ReleaseCapture();
                     _wake.Set();
                     return;
                 }
+            case Win32.WM_CAPTURECHANGED:
+                _renderer.MouseCaptureLost();
+                _wake.Set();
+                return;
             case Win32.WM_RBUTTONUP:
                 _renderer.RightClick();
                 _wake.Set();

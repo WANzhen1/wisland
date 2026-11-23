@@ -271,30 +271,36 @@ public sealed partial class IslandRenderer
             _theme.Text(alpha), Fonts.Icon, SKTextAlign.Center);
         TextUtil.Draw(canvas, _systemState.Muted ? "已静音" : "音量", volume.Left + 48, volume.Top + 31,
             13f, _theme.Text(alpha), Fonts.UiSemi);
-        TextUtil.Draw(canvas, $"{(int)Math.Round(_systemState.Volume * 100)}%", volume.Right - 22, volume.Top + 31,
+        var muteTile = new SKRect(volume.Right - 60, volume.Top + 11, volume.Right - 22, volume.Top + 43);
+        bool muteHover = muteTile.Contains(_mouseX, _mouseY);
+        TextUtil.Draw(canvas, $"{(int)Math.Round(_volumeUi * 100)}%", muteTile.Left - 12, volume.Top + 31,
             12f, _theme.Text2(alpha), Fonts.Num, SKTextAlign.Right);
         _volumeRect = new SKRect(volume.Left + 48, volume.Top + 56, volume.Right - 22, volume.Top + 61);
-        DrawSlider(canvas, _volumeRect, _systemState.Volume, alpha);
+        DrawSlider(canvas, _volumeRect, _volumeUi, alpha);
         _pageHits.Add((IslandHit.VolumeTrack, new SKRect(_volumeRect.Left - 8, _volumeRect.Top - 8,
             _volumeRect.Right + 8, _volumeRect.Bottom + 8), 0));
 
-        var muteTile = new SKRect(volume.Right - 104, volume.Top + 48, volume.Right - 22, volume.Top + 82);
         _pageHits.Add((IslandHit.MuteTile, muteTile, 0));
-        using (var mt = new SKPaint { Color = _theme.Card(alpha * 1.2f), IsAntialias = true })
-            canvas.DrawRoundRect(muteTile, 12f, 12f, mt);
+        using (var mt = new SKPaint
+               {
+                   Color = _systemState.Muted ? _theme.Pill(alpha * 0.9f) :
+                       muteHover ? _theme.Hover(alpha) : _theme.Card(alpha * 1.25f),
+                   IsAntialias = true
+               })
+            canvas.DrawRoundRect(muteTile, 10f, 10f, mt);
         TextUtil.Draw(canvas, _systemState.Muted ? "\uE74F" : "\uE767", muteTile.MidX, muteTile.MidY + 5, 14f,
-            _theme.Text(alpha), Fonts.Icon, SKTextAlign.Center);
+            _systemState.Muted ? _theme.PillText(alpha) : _theme.Text(alpha), Fonts.Icon, SKTextAlign.Center);
 
         var bright = new SKRect(contentL, y + 102, contentR, y + 194);
         DrawCard(canvas, bright, 16f, alpha * 0.82f);
         TextUtil.Draw(canvas, "亮度", bright.Left + 48, bright.Top + 30, 13f,
             _theme.Text(alpha), Fonts.UiSemi);
-        if (_systemState.Brightness >= 0)
+        if (_brightnessUi >= 0f)
         {
-            TextUtil.Draw(canvas, $"{_systemState.Brightness}%", bright.Right - 22, bright.Top + 30,
+            TextUtil.Draw(canvas, $"{(int)Math.Round(_brightnessUi * 100)}%", bright.Right - 22, bright.Top + 30,
                 12f, _theme.Text2(alpha), Fonts.Num, SKTextAlign.Right);
             _brightnessRect = new SKRect(bright.Left + 48, bright.Top + 56, bright.Right - 22, bright.Top + 61);
-            DrawSlider(canvas, _brightnessRect, _systemState.Brightness / 100f, alpha);
+            DrawSlider(canvas, _brightnessRect, _brightnessUi, alpha);
             _pageHits.Add((IslandHit.BrightnessTrack, new SKRect(_brightnessRect.Left - 8,
                 _brightnessRect.Top - 8, _brightnessRect.Right + 8, _brightnessRect.Bottom + 8), 0));
         }
