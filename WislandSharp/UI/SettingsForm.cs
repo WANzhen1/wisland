@@ -49,6 +49,31 @@ public sealed class SettingsForm : Form
     private readonly TextBox _wechatPath = new();
     private readonly TextBox _mailPath = new();
 
+    private readonly CheckBox _translateEnabled = new();
+    private readonly TextBox _translateKey = new();
+    private readonly TextBox _translateBase = new();
+    private readonly TextBox _translateModel = new();
+    private readonly CheckBox _translateFallback = new();
+
+    private readonly TextBox _mimoKey = new();
+    private readonly TextBox _mimoBase = new();
+    private readonly TextBox _mimoAsr = new();
+    private readonly TextBox _mimoTts = new();
+    private readonly TextBox _mimoChat = new();
+    private readonly TextBox _mimoVoice = new();
+    private readonly ComboBox _asrLanguage = new();
+    private readonly CheckBox _showKeys = new();
+
+    private readonly CheckBox _liveEnabled = new();
+    private readonly CheckBox _liveTranslate = new();
+    private readonly CheckBox _liveCompact = new();
+    private readonly ComboBox _liveSource = new();
+    private readonly NumericUpDown _liveHold = new();
+    private readonly NumericUpDown _liveSilence = new();
+    private readonly NumericUpDown _liveMinSpeech = new();
+    private readonly NumericUpDown _liveMaxSegment = new();
+    private readonly NumericUpDown _liveHistory = new();
+
     private bool _saved;
 
     public SettingsForm(WislandConfig config)
@@ -119,6 +144,11 @@ public sealed class SettingsForm : Form
         _notifyFlow = NewFlow(notifyPage);
         BuildNotifyTab();
         _tabs.TabPages.Add(notifyPage);
+
+        var translatePage = NewPage("翻译字幕");
+        var translateFlow = NewFlow(translatePage);
+        BuildTranslateTab(translateFlow);
+        _tabs.TabPages.Add(translatePage);
 
         var advancedPage = NewPage("高级");
         BuildAdvancedTab(advancedPage);
@@ -356,6 +386,112 @@ public sealed class SettingsForm : Form
         AddGroup(_notifyFlow, mapping);
     }
 
+    private void BuildTranslateTab(TableLayoutPanel flow)
+    {
+        _translateEnabled.Text = "启用翻译页和翻译快捷键";
+        _translateEnabled.ForeColor = Fg;
+        _translateFallback.Text = "未填写 DeepSeek Key 时，使用 MiMo 文本模型翻译";
+        _translateFallback.ForeColor = Fg;
+        _showKeys.Text = "显示密钥";
+        _showKeys.ForeColor = Fg;
+        _showKeys.CheckedChanged += (_, _) => SetSecretVisibility(_showKeys.Checked);
+
+        _translateKey.UseSystemPasswordChar = true;
+        _mimoKey.UseSystemPasswordChar = true;
+        StyleInput(_translateKey);
+        StyleInput(_translateBase);
+        StyleInput(_translateModel);
+        StyleInput(_mimoKey);
+        StyleInput(_mimoBase);
+        StyleInput(_mimoAsr);
+        StyleInput(_mimoTts);
+        StyleInput(_mimoChat);
+        StyleInput(_mimoVoice);
+
+        _asrLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
+        AddCombo(_asrLanguage,
+            ("auto", "自动检测（中 / 英）"),
+            ("zh", "中文"),
+            ("en", "English"));
+        StyleInput(_asrLanguage);
+
+        var translate = Group("翻译");
+        var tg = Grid(5);
+        AddRow(tg, 0, "", _translateEnabled);
+        AddRow(tg, 1, "DeepSeek API Key", _translateKey);
+        AddRow(tg, 2, "Base URL", _translateBase);
+        AddRow(tg, 3, "模型", _translateModel);
+        AddRow(tg, 4, "", _translateFallback);
+        translate.Controls.Add(tg);
+        AddGroup(flow, translate);
+
+        var mimo = Group("小米 MiMo（语音识别 / 字幕翻译 / 朗读）");
+        var mg = Grid(8);
+        AddRow(mg, 0, "MiMo API Key", _mimoKey);
+        AddRow(mg, 1, "Base URL", _mimoBase);
+        AddRow(mg, 2, "ASR 模型", _mimoAsr);
+        AddRow(mg, 3, "TTS 模型", _mimoTts);
+        AddRow(mg, 4, "文本模型（翻译回退）", _mimoChat);
+        AddRow(mg, 5, "TTS 音色", _mimoVoice);
+        AddRow(mg, 6, "识别语言", _asrLanguage);
+        AddRow(mg, 7, "", _showKeys);
+        mimo.Controls.Add(mg);
+        AddGroup(flow, mimo);
+
+        _liveEnabled.Text = "启用实时字幕";
+        _liveEnabled.ForeColor = Fg;
+        _liveTranslate.Text = "识别后自动翻译成简体中文";
+        _liveTranslate.ForeColor = Fg;
+        _liveCompact.Text = "在收起态顶部显示两行字幕";
+        _liveCompact.ForeColor = Fg;
+
+        _liveSource.DropDownStyle = ComboBoxStyle.DropDownList;
+        AddCombo(_liveSource,
+            ("loopback", "系统声音（视频 / 音乐 / 会议）"),
+            ("mic", "麦克风"));
+        StyleInput(_liveSource);
+
+        ConfigureNumber(_liveHold, 1, 30, 1);
+        ConfigureNumber(_liveSilence, 200, 2000, 50);
+        ConfigureNumber(_liveMinSpeech, 100, 1500, 50);
+        ConfigureNumber(_liveMaxSegment, 3, 30, 1);
+        ConfigureNumber(_liveHistory, 10, 200, 10);
+
+        var live = Group("实时字幕");
+        var lg = Grid(10);
+        AddRow(lg, 0, "", _liveEnabled);
+        AddRow(lg, 1, "", _liveTranslate);
+        AddRow(lg, 2, "", _liveCompact);
+        AddRow(lg, 3, "音频源", _liveSource);
+        AddRow(lg, 4, "字幕停留（秒）", _liveHold);
+        AddRow(lg, 5, "断句静音（毫秒）", _liveSilence);
+        AddRow(lg, 6, "最短语音（毫秒）", _liveMinSpeech);
+        AddRow(lg, 7, "单句最长（秒）", _liveMaxSegment);
+        AddRow(lg, 8, "历史上限（条）", _liveHistory);
+        lg.Controls.Add(new Label
+        {
+            Text = "静音值越小，断句越快；环境噪声较大时可适当调高。",
+            AutoSize = true,
+            ForeColor = Muted,
+            Padding = new Padding(0, 2, 0, 6)
+        }, 1, 9);
+        live.Controls.Add(lg);
+        AddGroup(flow, live);
+
+        var note = Group("说明");
+        note.Controls.Add(new Label
+        {
+            Text = "MiMo ASR 当前支持中英双语和中文方言；日语等语言无法保证识别准确率。\n" +
+                   "文本翻译优先使用 DeepSeek；未填写时可将 MiMo 文本模型作为回退。\n" +
+                   "API Key 只保存在本机 config.json，不会写入源码或发布包。",
+            AutoSize = true,
+            ForeColor = Muted,
+            Padding = new Padding(2, 4, 2, 6),
+            Font = new Font("Microsoft YaHei UI", 9.5f)
+        });
+        AddGroup(flow, note);
+    }
+
     private void BuildAdvancedTab(TabPage page)
     {
         var flow = NewFlow(page);
@@ -420,6 +556,31 @@ public sealed class SettingsForm : Form
         _wechatPath.Text = GetDictionary(source.Notify.Open, "wechat");
         _mailPath.Text = GetDictionary(source.Notify.Open, "mail");
 
+        _translateEnabled.Checked = source.Translate.Enabled;
+        _translateKey.Text = source.Translate.ApiKey;
+        _translateBase.Text = source.Translate.BaseUrl;
+        _translateModel.Text = source.Translate.Model;
+        _translateFallback.Checked = source.Translate.FallbackToMimo;
+
+        _mimoKey.Text = source.Mimo.ApiKey;
+        _mimoBase.Text = source.Mimo.BaseUrl;
+        _mimoAsr.Text = source.Mimo.AsrModel;
+        _mimoTts.Text = source.Mimo.TtsModel;
+        _mimoChat.Text = source.Mimo.ChatModel;
+        _mimoVoice.Text = source.Mimo.Voice;
+        SelectKey(_asrLanguage, source.Mimo.AsrLanguage);
+
+        _liveEnabled.Checked = source.Live.Enabled;
+        _liveTranslate.Checked = source.Live.Translate;
+        _liveCompact.Checked = source.Live.ShowInCompact;
+        SelectKey(_liveSource, source.Live.Source);
+        _liveHold.Value = Clamp(source.Live.HoldSeconds, _liveHold.Minimum, _liveHold.Maximum);
+        _liveSilence.Value = Clamp(source.Live.SilenceMs, _liveSilence.Minimum, _liveSilence.Maximum);
+        _liveMinSpeech.Value = Clamp(source.Live.MinSpeechMs, _liveMinSpeech.Minimum, _liveMinSpeech.Maximum);
+        _liveMaxSegment.Value = Clamp(source.Live.MaxSegmentSeconds, _liveMaxSegment.Minimum, _liveMaxSegment.Maximum);
+        _liveHistory.Value = Clamp(source.Live.HistoryMax, _liveHistory.Minimum, _liveHistory.Maximum);
+        SetSecretVisibility(_showKeys.Checked);
+
         _launchers.Rows.Clear();
         foreach (var item in source.Launcher)
             _launchers.Rows.Add(item.Name, item.Path, item.Args);
@@ -464,6 +625,30 @@ public sealed class SettingsForm : Form
         SetDictionary(_config.Notify.Open, "qq", _qqPath.Text.Trim());
         SetDictionary(_config.Notify.Open, "wechat", _wechatPath.Text.Trim());
         SetDictionary(_config.Notify.Open, "mail", _mailPath.Text.Trim());
+
+        _config.Translate.Enabled = _translateEnabled.Checked;
+        _config.Translate.ApiKey = _translateKey.Text.Trim();
+        _config.Translate.BaseUrl = Fallback(_translateBase.Text, "https://api.deepseek.com");
+        _config.Translate.Model = Fallback(_translateModel.Text, "deepseek-chat");
+        _config.Translate.FallbackToMimo = _translateFallback.Checked;
+
+        _config.Mimo.ApiKey = _mimoKey.Text.Trim();
+        _config.Mimo.BaseUrl = Fallback(_mimoBase.Text, "https://api.xiaomimimo.com/v1");
+        _config.Mimo.AsrModel = Fallback(_mimoAsr.Text, "mimo-v2.5-asr");
+        _config.Mimo.TtsModel = Fallback(_mimoTts.Text, "mimo-v2.5-tts");
+        _config.Mimo.ChatModel = Fallback(_mimoChat.Text, "mimo-v2.6-flash");
+        _config.Mimo.Voice = Fallback(_mimoVoice.Text, "冰糖");
+        _config.Mimo.AsrLanguage = Fallback(SelectedKey(_asrLanguage), "auto");
+
+        _config.Live.Enabled = _liveEnabled.Checked;
+        _config.Live.Translate = _liveTranslate.Checked;
+        _config.Live.ShowInCompact = _liveCompact.Checked;
+        _config.Live.Source = Fallback(SelectedKey(_liveSource), "loopback");
+        _config.Live.HoldSeconds = (int)_liveHold.Value;
+        _config.Live.SilenceMs = (int)_liveSilence.Value;
+        _config.Live.MinSpeechMs = (int)_liveMinSpeech.Value;
+        _config.Live.MaxSegmentSeconds = (int)_liveMaxSegment.Value;
+        _config.Live.HistoryMax = (int)_liveHistory.Value;
 
         var launchers = new List<LauncherItem>();
         foreach (DataGridViewRow row in _launchers.Rows)
@@ -731,6 +916,15 @@ public sealed class SettingsForm : Form
 
     private static decimal Clamp(int value, decimal min, decimal max)
         => Math.Clamp(value, (int)min, (int)max);
+
+    private void SetSecretVisibility(bool show)
+    {
+        _translateKey.UseSystemPasswordChar = !show;
+        _mimoKey.UseSystemPasswordChar = !show;
+    }
+
+    private static string Fallback(string value, string fallback)
+        => string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
 
     private static string GetDictionary(Dictionary<string, string> map, string key)
         => map.TryGetValue(key, out string? value) ? value ?? "" : "";

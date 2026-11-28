@@ -5,8 +5,8 @@
 [NotchPeninsula](https://github.com/GEORGEWWWU/NotchPeninsula) 相近的原生路线：
 Win32 透明分层窗口 + Skia 逐帧绘制。
 
-> 当前是**第一版可运行移植**，不是 1:1 功能完全体。原项目约 1.2 万行 Python，
-> 其中实时字幕、翻译、单词本/Anki、邮件、Clash 等属于独立的重模块，已明确列在下方“尚未迁移”。
+> 当前是**可运行的原生移植**，不是 1:1 功能完全体。翻译与实时字幕已经接入，
+> 单词本/Anki、邮件、Clash、拖拽吸附等仍在下方“尚未迁移”中。
 
 ## 预览
 
@@ -37,7 +37,7 @@ Win32 透明分层窗口 + Skia 逐帧绘制。
 - 贴顶边液态胶囊：两侧表面张力肩线、底部大圆角、柔和阴影、玻璃描边。
 - 收起态三种内容：时间天气 / 小形象 / 正在播放；滚轮切换，空闲自动轮换。
 - 悬停展开、离开收起、双击“长关”、`Ctrl+Alt+I` 展开/收起。
-- 展开面板：主页、消息、股票、天气、控制、剪贴板六个页签 + 右上角菜单。
+- 展开面板：主页、消息、股票、天气、控制、剪贴板、翻译、字幕八个页签 + 右上角菜单。
 - 主页：媒体封面/标题/进度/上一首/播放暂停/下一首、发光小形象、保持展开/可穿透/静音/实时字幕入口、应用启动器。
 - 媒体：Windows SMTC（系统媒体传输控制），支持浏览器、QQ 音乐、Spotify、B 站等接入 SMTC 的播放器。
 - 歌词：网易云公开接口按歌名/歌手/时长匹配 LRC，收起态显示当前歌词。
@@ -48,6 +48,9 @@ Win32 透明分层窗口 + Skia 逐帧绘制。
 - 股票：腾讯财经公开行情，自选列表来自配置。
 - 控制：系统音量、静音、音频峰值律动、亮度（支持的显示器）、WLAN/蓝牙设置入口；音量与亮度滑条支持按住拖动。
 - 剪贴板：最近 10 条文本，点击回填到剪贴板。
+- 翻译：自动识别日语、英语或其他源语言并翻译成简体中文；支持翻译剪贴板、独立翻译窗口、复制译文和 MiMo TTS 朗读。
+- 实时字幕：WASAPI 系统回环或麦克风采集，能量 VAD 自动断句，MiMo ASR 识别，按句翻译成中文；展开页保留历史，收起态可显示两行字幕。
+- 设置面板：新增“翻译字幕”页，可配置 DeepSeek / MiMo Key、模型、音色、识别语言、音频源、断句参数和字幕停留时间；Key 使用密码框显示。
 - 主题：自动 / 浅色 / 深色 / 胭脂撞色 / 晴空渐变。
 - 托盘菜单：显示隐藏、主题、编辑配置、重新加载、退出。
 - 配置编辑：内置 JSON 编辑器，保存前校验格式，保存后自动重新加载；不依赖 Windows Notepad。
@@ -57,10 +60,13 @@ Win32 透明分层窗口 + Skia 逐帧绘制。
 这些模块在 Python 版里各自依赖较大运行时或系统权限，第一版没有强行塞进来：
 
 - 网易云本地播放日志（目前优先依赖 SMTC）
-- 实时字幕（日语识别 + 翻译模型）、文本翻译、单词本、Anki 同步
+- 单词本、点词查词、Anki 同步
 - IMAP 邮件未读、Clash Verge 控制、股票搜索添加、天气城市管理 UI
 - 拖拽拉丝/断开/吸附到任意边、多显示器选择、全屏自动隐藏
 - Python 插件体系（wisland 原项目本身不是插件宿主）
+
+MiMo `mimo-v2.5-asr` 当前以中文、英文和中文方言识别为主，日语等语言的准确率无法保证。
+翻译文本模型可以处理日语、英语等多语言，但如果要稳定识别日语语音，需要等待模型支持或改用其他 ASR 后端。
 
 ## 构建
 
@@ -111,6 +117,33 @@ bin\Release\net10.0-windows10.0.19041.0\Wisland.exe
     "show_preview": true,
     "open": { "qq": "", "wechat": "", "mail": "" }
   },
+  "translate": {
+    "enabled": true,
+    "api_key": "",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "fallback_to_mimo": true
+  },
+  "mimo": {
+    "api_key": "",
+    "base_url": "https://api.xiaomimimo.com/v1",
+    "asr_model": "mimo-v2.5-asr",
+    "tts_model": "mimo-v2.5-tts",
+    "chat_model": "mimo-v2.6-flash",
+    "voice": "冰糖",
+    "asr_language": "auto"
+  },
+  "live": {
+    "enabled": true,
+    "translate": true,
+    "show_in_compact": true,
+    "hold_seconds": 7,
+    "silence_ms": 650,
+    "min_speech_ms": 250,
+    "max_segment_seconds": 12,
+    "source": "loopback",
+    "history_max": 80
+  },
   "launcher": [
     { "name": "文件资源管理器", "path": "C:/Windows/explorer.exe" }
   ]
@@ -126,6 +159,17 @@ bin\Release\net10.0-windows10.0.19041.0\Wisland.exe
 - `notify.toast_apps`: 通知 Handler 的 PrimaryId 前缀到 QQ/微信/邮件的映射，默认已覆盖常见前缀。
 - `notify.open`: 点击消息时优先启动的应用路径；留空则尝试唤起正在运行的 QQ/Weixin/Thunderbird 窗口。
 - `notify.flash_processes`: 任务栏闪烁进程到 QQ/微信/邮件的映射；通知数据库不可用时用它兜底。
+- `translate.api_key`: DeepSeek API Key；填写后优先使用 DeepSeek 翻译。
+- `translate.fallback_to_mimo`: 未填写 DeepSeek Key 时，使用 `mimo.chat_model` 做翻译回退。
+- `mimo.api_key`: 小米 MiMo API Key，ASR、TTS 和 MiMo 文本翻译共用。
+- `mimo.asr_language`: `auto` / `zh` / `en`；`auto` 适合中英混合内容，不保证日语识别。
+- `mimo.voice`: TTS 音色，默认“冰糖”。
+- `live.source`: `loopback` 采集系统声音，`mic` 采集麦克风。
+- `live.translate`: 识别后是否自动翻译成简体中文。
+- `live.show_in_compact`: 是否在收起态显示两行字幕。
+- `live.hold_seconds`: 最后一句字幕在收起态停留的秒数。
+- `live.silence_ms` / `min_speech_ms` / `max_segment_seconds`: VAD 断句参数；噪声大时调高静音阈值。
+- **不要把带 API Key 的 `config.json` 提交到仓库或上传到 Release。**
 - 修改后可从托盘菜单“重新加载配置”，或重启程序。
 - 如果系统自带 Notepad 提示 `Microsoft.UI.Windowing.Core.dll` 缺失，这是系统记事本 / WinUI 运行库的问题；Wisland 的“编辑配置”已经不再调用 Notepad，可直接使用内置编辑器。
 
@@ -135,6 +179,7 @@ bin\Release\net10.0-windows10.0.19041.0\Wisland.exe
 - `Ctrl+Alt+M`：打开消息页
 - `Ctrl+Alt+O`：打开内置配置编辑器
 - `Ctrl+Alt+V`：打开剪贴板页
+- `Ctrl+Alt+J`：翻译当前剪贴板文本
 - `Ctrl+Alt+S`：保存当前 Skia 帧到 exe 同目录 `snapshot.png`（调试用）
 
 ## 结构
@@ -157,10 +202,14 @@ WislandSharp/
 │  ├─ WeatherService.cs          Open-Meteo
 │  ├─ StockService.cs            腾讯财经
 │  ├─ SystemService.cs           音量/静音/峰值/亮度
-│  └─ ClipboardService.cs        最近文本
+│  ├─ ClipboardService.cs        最近文本
+│  ├─ MimoApiClient.cs           MiMo ASR / TTS / Chat
+│  ├─ TranslationService.cs      文本翻译与 TTS
+│  └─ LiveSubtitleService.cs     回环采集 / VAD / 实时字幕
 └─ UI/
    ├─ IslandRenderer*.cs         收起态 / 展开面板 / 页面绘制与命中
    ├─ PetFace.cs                 发光双眼小形象
+   ├─ TranslationForm.cs         独立翻译窗口
    └─ TextUtil.cs                字体与文本测量
 ```
 

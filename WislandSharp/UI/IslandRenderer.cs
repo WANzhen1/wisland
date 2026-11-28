@@ -26,6 +26,8 @@ public sealed partial class IslandRenderer
     private readonly ClipboardService _clipboard;
     private readonly LyricsService _lyricsService;
     private readonly NotificationService _notifications;
+    private readonly TranslationService _translate;
+    private readonly LiveSubtitleService _subtitles;
     private readonly ThemeEngine _theme;
     private readonly PetFace _pet = new();
     private Backdrop? _backdrop;
@@ -42,6 +44,9 @@ public sealed partial class IslandRenderer
     private IReadOnlyList<ClipboardEntry> _clipState = Array.Empty<ClipboardEntry>();
     private NotificationSnapshot _notificationState = new();
     private long _notificationVersion;
+    private TranslationSnapshot _translationState = new();
+    private SubtitleSnapshot _subtitleState = new();
+    private long _subtitleUntil;
 
     private readonly Spring _expand = new(0);
     private readonly Spring _pageHeight = new(252);
@@ -83,7 +88,7 @@ public sealed partial class IslandRenderer
     private SKRect _body;
     private readonly NavHit[] _navHits =
     {
-        new(), new(), new(), new(), new(), new()
+        new(), new(), new(), new(), new(), new(), new(), new()
     };
     private readonly List<(IslandHit Hit, SKRect Rect, int Index)> _pageHits = new();
     private SKRect _compactPlayRect;
@@ -99,8 +104,14 @@ public sealed partial class IslandRenderer
     private string _activityGlyph = "\uE946";
 
     private readonly Dictionary<string, SKBitmap?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly string[] _navIcons = { "\uE80F", "\uE8BD", "\uEAFC", "\uE706", "\uE9E9", "\uE77F" };
-    private readonly string[] _navLabels = { "主页", "消息", "股票", "天气", "控制", "剪贴板" };
+    private readonly string[] _navIcons =
+    {
+        "\uE80F", "\uE8BD", "\uEAFC", "\uE706", "\uE9E9", "\uE77F", "\uE8C1", "\uE720"
+    };
+    private readonly string[] _navLabels =
+    {
+        "主页", "消息", "股票", "天气", "控制", "剪贴板", "翻译", "字幕"
+    };
 
     private sealed class NavHit
     {
@@ -111,7 +122,8 @@ public sealed partial class IslandRenderer
 
     public IslandRenderer(WislandConfig config, IslandActions actions, MediaService media,
         WeatherService weather, StockService stocks, SystemService system, ClipboardService clipboard,
-        LyricsService lyricsService, NotificationService notifications)
+        LyricsService lyricsService, NotificationService notifications,
+        TranslationService translate, LiveSubtitleService subtitles)
     {
         _config = config;
         _actions = actions;
@@ -122,6 +134,8 @@ public sealed partial class IslandRenderer
         _clipboard = clipboard;
         _lyricsService = lyricsService;
         _notifications = notifications;
+        _translate = translate;
+        _subtitles = subtitles;
         _theme = new ThemeEngine(config.Island.Theme);
         _view = string.IsNullOrWhiteSpace(config.Island.CompactView) ? "clock" : config.Island.CompactView;
         if (!config.Island.ShowIdlePet && _view == "pet") _view = "clock";
@@ -137,6 +151,8 @@ public sealed partial class IslandRenderer
         _lyricsService.Changed += SetLyrics;
         _notifications.Changed += SetNotifications;
         _notifications.NewNotification += OnNewNotification;
+        _translate.Changed += SetTranslation;
+        _subtitles.Changed += SetSubtitles;
         _weatherState = _weather.Snapshot;
         _stockState = _stocks.Snapshot;
         _systemState = _system.Snapshot;
@@ -147,6 +163,8 @@ public sealed partial class IslandRenderer
         _brightnessUiAt = now - 1000;
         _clipState = _clipboard.Items;
         _notificationState = _notifications.Snapshot;
+        _translationState = _translate.Snapshot;
+        _subtitleState = _subtitles.Snapshot;
     }
 
     public void SetBackdrop(Backdrop backdrop) => _backdrop = backdrop;
@@ -175,9 +193,10 @@ public sealed partial class IslandRenderer
         {
             lock (_lock)
             {
+                long now = Environment.TickCount64;
                 return _hover ||
                        (_mediaState.HasSession && (_mediaState.Playing || _view == "music")) ||
-                       _view == "pet";
+                       _view == "pet" || SubtitleVisibleLocked(now);
             }
         }
     }
@@ -254,6 +273,56 @@ public sealed partial class IslandRenderer
             _notificationVersion = state.Version;
             _notificationState = state;
         }
+    }
+
+    private void SetTranslation(TranslationSnapshot state)
+    {
+        bool completed;
+        bool failed;
+        bool expanded;
+        string detail;
+        lock (_lock)
+        {
+            bool wasBusy = _translationState.Busy;
+            _translationState = state;
+            expanded = _expanded;
+            completed = wasBusy && !state.Busy && !string.IsNullOrWhiteSpace(state.Result);
+            failed = wasBusy && !state.Busy && !string.IsNullOrWhiteSpace(state.Error);
+            detail = failed ? state.Error : state.Result;
+        }
+
+        if (completed && !expanded)
+        {
+            string first = string.Join(" ", detail.Split((char[]?)null,
+                StringSplitOptions.RemoveEmptyEntries));
+            if (first.Length > 72) first = first[..72];
+            ShowActivity("翻译完成", first, "\uE8C1",
+                seconds: Math.Min(12, 4 + first.Length * 0.1));
+        }
+        else if (failed && !expanded)
+        {
+            ShowActivity("翻译失败", detail, "\uE8C1", seconds: 4);
+        }
+        _actions.RequestRender?.Invoke();
+    }
+
+    private void SetSubtitles(SubtitleSnapshot state)
+    {
+        lock (_lock)
+        {
+            _subtitleState = state;
+            if (!string.IsNullOrWhiteSpace(state.Source) ||
+                !string.IsNullOrWhiteSpace(state.Translation))
+            {
+                int hold = Math.Clamp(_config.Live.HoldSeconds, 1, 30);
+                _subtitleUntil = Environment.TickCount64 + hold * 1000L;
+            }
+            else if (!state.Running && !state.Starting)
+            {
+                _subtitleUntil = 0;
+            }
+        }
+        _actions.RequestRender?.Invoke();
     }
 
     private void OnNewNotification(NotificationItem item)
@@ -510,6 +579,64 @@ public sealed partial class IslandRenderer
         _actions.ShowMenu?.Invoke();
     }
 
+    public void TranslateClipboard()
+    {
+        string text = "";
+        try
+        {
+            text = System.Windows.Forms.Clipboard.GetText()?.Trim() ?? "";
+        }
+        catch { }
+        if (text.Length == 0)
+        {
+            ShowActivity("剪贴板里没有文字", "", "\uE8C1", seconds: 2.5);
+            return;
+        }
+
+        lock (_lock)
+        {
+            _navIndex = 6;
+            _expanded = true;
+            _leaveSince = 0;
+        }
+        _ = _translate.TranslateTextAsync(text);
+        ShowActivity("翻译中…", text[..Math.Min(30, text.Length)], "\uE8C1", seconds: 20);
+        _actions.RequestRender?.Invoke();
+    }
+
+    private void CopyTranslation()
+    {
+        string text;
+        lock (_lock) text = _translationState.Result;
+        if (string.IsNullOrWhiteSpace(text)) return;
+        try
+        {
+            System.Windows.Forms.Clipboard.SetText(text);
+            ShowActivity("已复制译文", "", "\uE8C8", seconds: 2);
+        }
+        catch { }
+    }
+
+    private void SpeakTranslation()
+    {
+        string text;
+        lock (_lock) text = _translationState.Result;
+        if (string.IsNullOrWhiteSpace(text)) return;
+        ShowActivity("正在合成语音…", "MiMo TTS", "\uE767", seconds: 10);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _translate.SpeakAsync(text);
+                ShowActivity("朗读完成", "", "\uE767", seconds: 2);
+            }
+            catch (Exception ex)
+            {
+                ShowActivity("朗读失败", ex.Message, "\uE767", seconds: 4);
+            }
+        });
+    }
+
     public void OnShellFlash(IntPtr hwnd) => _notifications.OnShellFlash(hwnd);
 
     public void OpenConfig() => _actions.EditConfig?.Invoke();
@@ -745,7 +872,10 @@ public sealed partial class IslandRenderer
                     ShowActivity(_system.Snapshot.Muted ? "已静音" : "已取消静音", "", "\uE767");
                     return;
                 case IslandHit.ActionLive:
-                    ShowActivity("实时字幕将在下一阶段移植", "需要语音识别与翻译模型", "\uE720", seconds: 3.2);
+                    _subtitles.Toggle();
+                    _navIndex = 7;
+                    _expanded = true;
+                    _leaveSince = 0;
                     return;
                 case IslandHit.Launcher:
                     Launch(_config.Launcher.ElementAtOrDefault(hit.Index));
@@ -792,6 +922,24 @@ public sealed partial class IslandRenderer
                 case IslandHit.NotificationRow:
                     if (hit.Index >= 0 && hit.Index < _notificationState.History.Count)
                         OpenNotification(_notificationState.History[hit.Index].Kind);
+                    return;
+                case IslandHit.TranslateClipboard:
+                    TranslateClipboard();
+                    return;
+                case IslandHit.TranslateOpen:
+                    _actions.OpenTranslation?.Invoke();
+                    return;
+                case IslandHit.TranslateCopy:
+                    CopyTranslation();
+                    return;
+                case IslandHit.TranslateSpeak:
+                    SpeakTranslation();
+                    return;
+                case IslandHit.SubtitleToggle:
+                    _subtitles.Toggle();
+                    return;
+                case IslandHit.SubtitleClear:
+                    _subtitles.Clear();
                     return;
             }
         }
@@ -909,7 +1057,7 @@ public sealed partial class IslandRenderer
             _body = new SKRect((WinW - w) / 2f, 2f, (WinW + w) / 2f, 2f + h);
             var shape = new SKRect(_body.Left, 0f, _body.Right, _body.Bottom);
             Shapes.TopAttachedInto(_path, shape, Fillet,
-                Math.Min(30f, _body.Height / 2f), topOverscan: 1f, shoulderHeight: TopShoulder);
+                Math.Min(30f, _body.Height / 2f), topOverscan: 2f, shoulderHeight: TopShoulder);
 
             float mx = (_mouseX - _body.MidX) / Math.Max(1f, _body.Width / 2f);
             float my = (_mouseY - _body.MidY) / Math.Max(1f, _body.Height / 2f);
@@ -927,10 +1075,20 @@ public sealed partial class IslandRenderer
     private string CompactMode(long now)
     {
         if (_activityUntil > now) return "activity";
+        if (SubtitleVisibleLocked(now)) return "subtitle";
         if (_mediaState.HasSession && !string.IsNullOrWhiteSpace(_mediaState.Title) &&
             (_mediaState.Playing || _view == "music"))
             return "media";
         return _view == "pet" ? "pet" : "clock";
+    }
+
+    private bool SubtitleVisibleLocked(long now)
+    {
+        if (!_config.Live.ShowInCompact) return false;
+        if (string.IsNullOrWhiteSpace(_subtitleState.Source) &&
+            string.IsNullOrWhiteSpace(_subtitleState.Translation))
+            return false;
+        return _subtitleState.Running || _subtitleState.Starting || now <= _subtitleUntil;
     }
 
     private (float W, float H) CompactSize(string mode)
@@ -951,6 +1109,8 @@ public sealed partial class IslandRenderer
             float tw = TextUtil.Measure(text, 13f, Fonts.UiSemi);
             return (Math.Clamp(tw + 160, 330, 620) + badgeW, 36);
         }
+        if (mode == "subtitle")
+            return (640 + (_notificationState.TotalCount > 0 ? 12 : 0), 56);
         if (mode == "pet") return (150 + (_notificationState.TotalCount > 0 ? 12 : 0), 34);
         int badge = _notificationState.TotalCount > 0 ? 12 : 0;
         float w = 150 + (_weatherState.Ok ? 70 : 0) + badge;
@@ -965,6 +1125,8 @@ public sealed partial class IslandRenderer
         3 => 338,
         4 => 300,
         5 => 300,
+        6 => 330,
+        7 => 330,
         _ => 260
     };
 
@@ -1023,6 +1185,8 @@ public sealed partial class IslandRenderer
                 break;
             case 4: BuildControlHits(contentL, contentR, navY + NavH + PageGap); break;
             case 5: BuildClipboardHits(contentL, contentR, navY + NavH + PageGap); break;
+            case 6: break;
+            case 7: break;
         }
     }
 

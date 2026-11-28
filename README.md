@@ -3,6 +3,10 @@
 贴在屏幕边缘的液态毛玻璃胶囊，悬停弹性展开。Windows 10 / 11，Python + PySide6。
 
 > 另有原生 C# / .NET 移植版本：[WislandSharp](WislandSharp/README.md)。
+>
+> **当前 Release 发布的是 C# 原生版**：请下载 `WislandSharp-vX.Y.Z-win-x64.zip`，
+> 解压后运行 `Wisland.exe`。翻译、实时字幕、MiMo ASR/TTS 和设置说明见
+> [WislandSharp/README.md](WislandSharp/README.md)。下面的 Python 安装步骤仅用于源码运行。
 
 <p align="center"><img src="docs/home.png" width="720"></p>
 

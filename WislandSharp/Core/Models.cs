@@ -116,6 +116,40 @@ public sealed class NotificationSnapshot
     public int TotalCount => Counts.Values.Sum();
 }
 
+public sealed class TranslationSnapshot
+{
+    public long Version { get; init; }
+    public bool Busy { get; init; }
+    public string Source { get; init; } = "";
+    public string Result { get; init; } = "";
+    public string Status { get; init; } = "";
+    public string Error { get; init; } = "";
+    public string Provider { get; init; } = "";
+}
+
+public sealed class SubtitleLine
+{
+    public string Id { get; init; } = "";
+    public string Source { get; init; } = "";
+    public string Translation { get; init; } = "";
+    public string Language { get; init; } = "";
+    public long UpdatedAt { get; init; }
+}
+
+public sealed class SubtitleSnapshot
+{
+    public long Version { get; init; }
+    public bool Running { get; init; }
+    public bool Starting { get; init; }
+    public string Status { get; init; } = "";
+    public string Error { get; init; } = "";
+    public string Source { get; init; } = "";
+    public string Translation { get; init; } = "";
+    public string Language { get; init; } = "";
+    public long UpdatedAt { get; init; }
+    public IReadOnlyList<SubtitleLine> History { get; init; } = Array.Empty<SubtitleLine>();
+}
+
 public enum IslandHit
 {
     None,
@@ -126,6 +160,8 @@ public enum IslandHit
     NavWeather,
     NavControls,
     NavClipboard,
+    NavTranslate,
+    NavSubtitles,
     Settings,
     CompactPlay,
     MediaPrevious,
@@ -149,5 +185,11 @@ public enum IslandHit
     MessageWechat,
     MessageMail,
     MessageClear,
-    NotificationRow
+    NotificationRow,
+    TranslateClipboard,
+    TranslateOpen,
+    TranslateCopy,
+    TranslateSpeak,
+    SubtitleToggle,
+    SubtitleClear
 }

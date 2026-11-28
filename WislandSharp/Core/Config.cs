@@ -92,6 +92,40 @@ public sealed class LauncherItem
     [JsonPropertyName("args")] public string Args { get; set; } = "";
 }
 
+public sealed class TranslateOptions
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("api_key")] public string ApiKey { get; set; } = "";
+    [JsonPropertyName("base_url")] public string BaseUrl { get; set; } = "https://api.deepseek.com";
+    [JsonPropertyName("model")] public string Model { get; set; } = "deepseek-chat";
+    [JsonPropertyName("fallback_to_mimo")] public bool FallbackToMimo { get; set; } = true;
+}
+
+public sealed class MimoOptions
+{
+    [JsonPropertyName("api_key")] public string ApiKey { get; set; } = "";
+    [JsonPropertyName("base_url")] public string BaseUrl { get; set; } = "https://api.xiaomimimo.com/v1";
+    [JsonPropertyName("asr_model")] public string AsrModel { get; set; } = "mimo-v2.5-asr";
+    [JsonPropertyName("tts_model")] public string TtsModel { get; set; } = "mimo-v2.5-tts";
+    [JsonPropertyName("chat_model")] public string ChatModel { get; set; } = "mimo-v2.6-flash";
+    [JsonPropertyName("voice")] public string Voice { get; set; } = "冰糖";
+    [JsonPropertyName("asr_language")] public string AsrLanguage { get; set; } = "auto";
+}
+
+public sealed class LiveOptions
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; } = true;
+    [JsonPropertyName("translate")] public bool Translate { get; set; } = true;
+    [JsonPropertyName("show_in_compact")] public bool ShowInCompact { get; set; } = true;
+    [JsonPropertyName("hold_seconds")] public int HoldSeconds { get; set; } = 7;
+    [JsonPropertyName("silence_ms")] public int SilenceMs { get; set; } = 650;
+    [JsonPropertyName("min_speech_ms")] public int MinSpeechMs { get; set; } = 250;
+    [JsonPropertyName("max_segment_seconds")] public int MaxSegmentSeconds { get; set; } = 12;
+    [JsonPropertyName("block_ms")] public int BlockMs { get; set; } = 80;
+    [JsonPropertyName("source")] public string Source { get; set; } = "loopback";
+    [JsonPropertyName("history_max")] public int HistoryMax { get; set; } = 80;
+}
+
 public sealed class WislandConfig
 {
     [JsonPropertyName("island")] public IslandOptions Island { get; set; } = new();
@@ -100,6 +134,9 @@ public sealed class WislandConfig
     [JsonPropertyName("stocks")] public StocksOptions Stocks { get; set; } = new();
     [JsonPropertyName("clipboard")] public ClipboardOptions Clipboard { get; set; } = new();
     [JsonPropertyName("notify")] public NotifyOptions Notify { get; set; } = new();
+    [JsonPropertyName("translate")] public TranslateOptions Translate { get; set; } = new();
+    [JsonPropertyName("mimo")] public MimoOptions Mimo { get; set; } = new();
+    [JsonPropertyName("live")] public LiveOptions Live { get; set; } = new();
     [JsonPropertyName("launcher")] public List<LauncherItem> Launcher { get; set; } = new()
     {
         new() { Name = "文件资源管理器", Path = "C:/Windows/explorer.exe" }
@@ -162,6 +199,9 @@ public sealed class WislandConfig
         Stocks = next.Stocks;
         Clipboard = next.Clipboard;
         Notify = next.Notify;
+        Translate = next.Translate;
+        Mimo = next.Mimo;
+        Live = next.Live;
         Launcher = next.Launcher;
     }
 }

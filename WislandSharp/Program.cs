@@ -37,11 +37,15 @@ internal sealed class WislandContext : ApplicationContext
     private readonly ClipboardService _clipboard;
     private readonly LyricsService _lyrics;
     private readonly NotificationService _notifications;
+    private readonly MimoApiClient _mimo;
+    private readonly TranslationService _translation;
+    private readonly LiveSubtitleService _live;
     private readonly IslandRenderer _renderer;
     private readonly IslandWindow _window;
     private readonly NotifyIcon _tray;
     private readonly Icon _trayIcon;
     private readonly ContextMenuStrip _menu;
+    private TranslationForm? _translationForm;
     private bool _disposed;
 
     public WislandContext()
@@ -54,6 +58,9 @@ internal sealed class WislandContext : ApplicationContext
         _clipboard = new ClipboardService(_config);
         _lyrics = new LyricsService(_config, _media);
         _notifications = new NotificationService(_config);
+        _mimo = new MimoApiClient(_config);
+        _translation = new TranslationService(_config, _mimo);
+        _live = new LiveSubtitleService(_config, _mimo, _translation);
 
         IslandWindow? window = null;
         var actions = new IslandActions
@@ -62,10 +69,12 @@ internal sealed class WislandContext : ApplicationContext
             ShowMenu = () => ShowMenu(Cursor.Position),
             EditConfig = OpenConfig,
             ReloadConfig = Reload,
-            Exit = ExitApplication
+            Exit = ExitApplication,
+            RequestRender = () => window?.RequestFrame(),
+            OpenTranslation = ShowTranslationForm
         };
         _renderer = new IslandRenderer(_config, actions, _media, _weather, _stocks, _system,
-            _clipboard, _lyrics, _notifications);
+            _clipboard, _lyrics, _notifications, _translation, _live);
         _window = new IslandWindow(_renderer, ShowMenu, _config.Island.ExcludeFromCapture,
             _config.Island.LiveBackdrop);
         window = _window;
@@ -115,6 +124,15 @@ internal sealed class WislandContext : ApplicationContext
             theme.DropDownItems.Add(mi);
         }
         menu.Items.Add(theme);
+        menu.Items.Add(new ToolStripSeparator());
+
+        var translate = new ToolStripMenuItem("翻译…");
+        translate.Click += (_, _) => ShowTranslationForm();
+        menu.Items.Add(translate);
+
+        var live = new ToolStripMenuItem("实时字幕 开始 / 停止");
+        live.Click += (_, _) => _live.Toggle();
+        menu.Items.Add(live);
         menu.Items.Add(new ToolStripSeparator());
 
         var edit = new ToolStripMenuItem("编辑配置");
@@ -170,6 +188,20 @@ internal sealed class WislandContext : ApplicationContext
         _menu.Focus();
     }
 
+    private void ShowTranslationForm()
+    {
+        if (_translationForm != null && !_translationForm.IsDisposed)
+        {
+            if (_translationForm.WindowState == FormWindowState.Minimized)
+                _translationForm.WindowState = FormWindowState.Normal;
+            _translationForm.Activate();
+            return;
+        }
+        _translationForm = new TranslationForm(_config, _translation);
+        _translationForm.FormClosed += (_, _) => _translationForm = null;
+        _translationForm.Show();
+    }
+
     private void OpenConfig()
     {
         try
@@ -208,6 +240,10 @@ internal sealed class WislandContext : ApplicationContext
         _disposed = true;
         try { _tray.Visible = false; _tray.Dispose(); } catch { }
         try { _trayIcon.Dispose(); } catch { }
+        try { _live.Dispose(); } catch { }
+        try { _translationForm?.Close(); } catch { }
+        try { _translation.Dispose(); } catch { }
+        try { _mimo.Dispose(); } catch { }
         try { _clipboard.Dispose(); } catch { }
         try { _lyrics.Dispose(); } catch { }
         try { _notifications.Dispose(); } catch { }

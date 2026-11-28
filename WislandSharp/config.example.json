@@ -57,6 +57,34 @@
       "thunderbird.exe": { "name": "邮件", "kind": "mail" }
     }
   },
+  "translate": {
+    "enabled": true,
+    "api_key": "",
+    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
+    "fallback_to_mimo": true
+  },
+  "mimo": {
+    "api_key": "",
+    "base_url": "https://api.xiaomimimo.com/v1",
+    "asr_model": "mimo-v2.5-asr",
+    "tts_model": "mimo-v2.5-tts",
+    "chat_model": "mimo-v2.6-flash",
+    "voice": "冰糖",
+    "asr_language": "auto"
+  },
+  "live": {
+    "enabled": true,
+    "translate": true,
+    "show_in_compact": true,
+    "hold_seconds": 7,
+    "silence_ms": 650,
+    "min_speech_ms": 250,
+    "max_segment_seconds": 12,
+    "block_ms": 80,
+    "source": "loopback",
+    "history_max": 80
+  },
   "launcher": [
     {
       "name": "文件资源管理器",

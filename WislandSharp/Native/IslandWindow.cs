@@ -133,6 +133,7 @@ public sealed class IslandWindow : NativeWindow, IDisposable
         Win32.RegisterHotKey(Handle, 3, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, (uint)'S');
         Win32.RegisterHotKey(Handle, 4, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, (uint)'M');
         Win32.RegisterHotKey(Handle, 5, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, (uint)'O');
+        Win32.RegisterHotKey(Handle, 6, Win32.MOD_CONTROL | Win32.MOD_ALT | Win32.MOD_NOREPEAT, (uint)'J');
         _shellHookMessage = Win32.RegisterWindowMessage("SHELLHOOK");
         if (_shellHookMessage != 0) Win32.RegisterShellHookWindow(Handle);
     }
@@ -185,6 +186,8 @@ public sealed class IslandWindow : NativeWindow, IDisposable
     {
         ShowWindow(!_shown);
     }
+
+    public void RequestFrame() => _wake.Set();
 
     public void SetPassthrough(bool on)
     {
@@ -388,6 +391,7 @@ public sealed class IslandWindow : NativeWindow, IDisposable
                     else if (id == 3) RequestSnapshot();
                     else if (id == 4) _renderer.ShowPage(1);
                     else if (id == 5) _renderer.OpenConfig();
+                    else if (id == 6) _renderer.TranslateClipboard();
                     _wake.Set();
                     return;
                 }
@@ -437,6 +441,7 @@ public sealed class IslandWindow : NativeWindow, IDisposable
         try { Win32.UnregisterHotKey(Handle, 3); } catch { }
         try { Win32.UnregisterHotKey(Handle, 4); } catch { }
         try { Win32.UnregisterHotKey(Handle, 5); } catch { }
+        try { Win32.UnregisterHotKey(Handle, 6); } catch { }
         try { if (_shellHookMessage != 0) Win32.DeregisterShellHookWindow(Handle); } catch { }
         try { _renderThread.Join(700); } catch { }
         try { if (_frameTimer != IntPtr.Zero) Win32.CloseHandle(_frameTimer); } catch { }

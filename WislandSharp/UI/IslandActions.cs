@@ -9,4 +9,6 @@ public sealed class IslandActions
     public Action? ReloadConfig { get; init; }
     public Action? Exit { get; init; }
     public Action<int>? SetTheme { get; init; }
+    public Action? RequestRender { get; init; }
+    public Action? OpenTranslation { get; init; }
 }

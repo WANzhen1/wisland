@@ -133,6 +133,8 @@ public sealed partial class IslandRenderer
 
     private void DrawRim(SKCanvas canvas)
     {
+        canvas.Save();
+        canvas.ClipRect(new SKRect(0, _body.Top + 0.75f, WinW, WinH));
         using var outline = new SKPaint
         {
             Color = _theme.Outline(),
@@ -153,6 +155,7 @@ public sealed partial class IslandRenderer
                 null, SKShaderTileMode.Clamp)
         };
         canvas.DrawPath(_path, rim);
+        canvas.Restore();
     }
 
     private void DrawCompact(SKCanvas canvas, float alpha)
@@ -164,6 +167,11 @@ public sealed partial class IslandRenderer
         if (mode == "activity")
         {
             DrawActivity(canvas, r, alpha);
+            return;
+        }
+        if (mode == "subtitle")
+        {
+            DrawCompactSubtitle(canvas, r, alpha);
             return;
         }
         if (mode == "media")
@@ -294,6 +302,8 @@ public sealed partial class IslandRenderer
             case 3: DrawWeather(canvas, contentL, contentR, pageY, e); break;
             case 4: DrawControls(canvas, contentL, contentR, pageY, e); break;
             case 5: DrawClipboard(canvas, contentL, contentR, pageY, e); break;
+            case 6: DrawTranslationPage(canvas, contentL, contentR, pageY, e); break;
+            case 7: DrawSubtitlesPage(canvas, contentL, contentR, pageY, e); break;
         }
         canvas.Restore();
     }
@@ -391,7 +401,8 @@ public sealed partial class IslandRenderer
             _passthrough ? "已穿透" : "可穿透", _passthrough, alpha, IslandHit.ActionPassthrough);
         DrawAction(canvas, actionsR - 150, actionsT + 82, 70, 70, _systemState.Muted ? "\uE74F" : "\uE767",
             _systemState.Muted ? "已静音" : "静音", _systemState.Muted, alpha, IslandHit.ActionMute);
-        DrawAction(canvas, actionsR - 70, actionsT + 82, 70, 70, "\uE720", "实时字幕", false, alpha, IslandHit.ActionLive);
+        DrawAction(canvas, actionsR - 70, actionsT + 82, 70, 70, "\uE720", "实时字幕",
+            _subtitleState.Running || _subtitleState.Starting, alpha, IslandHit.ActionLive);
 
         float lx = contentL + 2;
         float ly = y + 192;
